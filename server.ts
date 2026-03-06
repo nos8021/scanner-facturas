@@ -175,18 +175,18 @@ app.post("/api/analyze", async (req, res) => {
       };
 
       try {
-        console.log("Attempting analysis with gemini-3-flash-preview...");
+        console.log("Attempting analysis with gemini-2.5-flash...");
         return await ai.models.generateContent({
-          model: "gemini-3-flash-preview",
+          model: "gemini-2.5-flash",
           contents,
           config
         });
       } catch (error: any) {
         if (error.status === 503 || error.message?.includes("503") || error.message?.includes("high demand")) {
-          console.warn("gemini-3-flash-preview overloaded (503). Retrying with gemini-flash-latest...");
+          console.warn("gemini-2.5-flash overloaded (503). Retrying with gemini-2.0-flash...");
           await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1s
           return await ai.models.generateContent({
-            model: "gemini-flash-latest",
+            model: "gemini-2.0-flash",
             contents,
             config
           });
