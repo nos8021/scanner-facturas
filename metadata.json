@@ -1,0 +1,5 @@
+{
+  "name": "Remix: InvoiceScannermapEtiquetas",
+  "description": "A web application to extract, store, and manage invoice data from images using AI.",
+  "requestFramePermissions": []
+}

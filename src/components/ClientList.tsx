@@ -1,0 +1,194 @@
+import { useEffect, useState } from 'react';
+import { User, ChevronRight, Loader2, Search, FileText } from 'lucide-react';
+
+interface ClientListProps {
+  onSelectClient: (clientId: number) => void;
+}
+
+const Highlight = ({ text, highlight }: { text: string, highlight: string }) => {
+  if (!highlight.trim() || typeof text !== 'string') return <>{text}</>;
+  const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.toLowerCase() === highlight.toLowerCase() ?
+          <span key={i} className="bg-yellow-200 text-gray-900 font-semibold">{part}</span> : part
+      )}
+    </span>
+  );
+};
+
+export default function ClientList({ onSelectClient }: ClientListProps) {
+  const [clients, setClients] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<{ clients: any[], invoices: any[] } | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  // Load initial clients list
+  useEffect(() => {
+    fetch('/api/clients')
+      .then((res) => res.json())
+      .then((data) => {
+        // Fallback to empty array just in case
+        setClients(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error(err);
+        setError('Failed to load clients');
+        setLoading(false);
+      });
+  }, []);
+
+  // Handle search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.trim().length >= 1) {
+        setSearching(true);
+        fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
+          .then(res => res.json())
+          .then(data => {
+            setSearchResults(data);
+            setSearching(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setSearching(false);
+          });
+      } else {
+        setSearchResults(null);
+      }
+    }, 300); // Debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-500" /></div>;
+  if (error) return <div className="text-red-500 p-4">{error}</div>;
+
+  return (
+    <div className="space-y-6">
+      {/* Search Bar */}
+      <div className="relative">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <Search className="h-5 w-5 text-gray-400" />
+        </div>
+        <input
+          type="text"
+          placeholder="Search by Client Name, RUC, or Invoice Number..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm transition-all"
+        />
+        {searching && (
+          <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+            <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+          </div>
+        )}
+      </div>
+
+      {/* Results or Default List */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b border-gray-200 bg-gray-50">
+          <h2 className="text-lg font-semibold text-gray-900">
+            {searchResults ? 'Search Results' : 'Clients'}
+          </h2>
+        </div>
+
+        <div className="divide-y divide-gray-100">
+          {searchResults ? (
+            <>
+              {(!searchResults.clients?.length && !searchResults.invoices?.length) ? (
+                <div className="p-8 text-center text-gray-500">No matches found for "{searchQuery}"</div>
+              ) : (
+                <>
+                  {/* Client Matches */}
+                  {searchResults.clients?.map((client) => (
+                    <button
+                      key={`client-${client.id}`}
+                      onClick={() => onSelectClient(client.id)}
+                      className="w-full text-left p-4 hover:bg-blue-50 transition-colors flex items-center justify-between group border-l-4 border-transparent hover:border-blue-500"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-blue-100 rounded-full text-blue-600">
+                          <User className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            <Highlight text={client.name || ''} highlight={searchQuery} />
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            RUC: <Highlight text={client.ruc || ''} highlight={searchQuery} />
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>Client Match</span>
+                        <ChevronRight className="w-5 h-5 group-hover:text-blue-500" />
+                      </div>
+                    </button>
+                  ))}
+
+                  {/* Invoice Matches */}
+                  {searchResults.invoices?.map((invoice) => (
+                    <button
+                      key={`invoice-${invoice.id}`}
+                      onClick={() => onSelectClient(invoice.client_id)}
+                      className="w-full text-left p-4 hover:bg-purple-50 transition-colors flex items-center justify-between group border-l-4 border-transparent hover:border-purple-500"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 bg-purple-100 rounded-full text-purple-600">
+                          <FileText className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {invoice.client_name || 'Unknown Client'}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            Invoice #: <Highlight text={invoice.invoice_number || ''} highlight={searchQuery} />
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                        <span>Invoice Match</span>
+                        <ChevronRight className="w-5 h-5 group-hover:text-purple-500" />
+                      </div>
+                    </button>
+                  ))}
+                </>
+              )}
+            </>
+          ) : (
+            /* Default Client List */
+            <>
+              {!clients || clients.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No clients found yet. Upload an invoice to get started.</div>
+              ) : (
+                clients.map((client) => (
+                  <button
+                    key={client.id}
+                    onClick={() => onSelectClient(client.id)}
+                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-full text-blue-600">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{client.name || 'Unknown Client'}</p>
+                        <p className="text-sm text-gray-500">{client.ruc}</p>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500" />
+                  </button>
+                ))
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
