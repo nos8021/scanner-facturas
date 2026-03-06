@@ -1,7 +1,7 @@
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
-import db from "./src/db.js";
+import db, { initDB } from "./src/db.js";
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -232,38 +232,40 @@ app.post("/api/analyze", async (req, res) => {
 });
 
 // 2. Save Invoice
-app.post("/api/save", (req, res) => {
+app.post("/api/save", async (req, res) => {
   try {
     const data = req.body;
 
-    // Transaction to ensure client exists and invoice is saved
-    const saveTransaction = db.transaction(() => {
-      // 1. Upsert Client
-      let client = db.prepare('SELECT * FROM clients WHERE ruc = ?').get(data.client_ruc);
+    // 1. Upsert Client
+    let clientResult = await db.execute({
+      sql: 'SELECT * FROM clients WHERE ruc = ?',
+      args: [data.client_ruc]
+    });
 
-      if (!client) {
-        const info = db.prepare('INSERT INTO clients (name, ruc, address) VALUES (?, ?, ?)').run(
-          data.client_name,
-          data.client_ruc,
-          data.client_address
-        );
-        client = { id: info.lastInsertRowid, ...data };
-      } else {
-        // Update client info if needed (optional, skipping for now to preserve history)
-      }
+    let clientId;
+    if (clientResult.rows.length === 0) {
+      const info = await db.execute({
+        sql: 'INSERT INTO clients (name, ruc, address) VALUES (?, ?, ?)',
+        args: [data.client_name, data.client_ruc, data.client_address]
+      });
+      clientId = info.lastInsertRowid;
+    } else {
+      clientId = clientResult.rows[0].id;
+    }
 
-      // 2. Check for duplicate invoice
-      const existingInvoice = db.prepare('SELECT * FROM invoices WHERE invoice_number = ? AND issuer_ruc = ?').get(
-        data.invoice_number,
-        data.issuer_ruc
-      );
+    // 2. Check for duplicate invoice
+    const existingInvoice = await db.execute({
+      sql: 'SELECT * FROM invoices WHERE invoice_number = ? AND issuer_ruc = ?',
+      args: [data.invoice_number, data.issuer_ruc]
+    });
 
-      if (existingInvoice) {
-        throw new Error("DUPLICATE_INVOICE");
-      }
+    if (existingInvoice.rows.length > 0) {
+      throw new Error("DUPLICATE_INVOICE");
+    }
 
-      // 3. Insert Invoice
-      db.prepare(`
+    // 3. Insert Invoice
+    await db.execute({
+      sql: `
         INSERT INTO invoices (
           client_id, invoice_number, issuer_name, issuer_ruc, issuer_address, issuer_phone, taxpayer_type,
           date, environment, payment_type, payment_method_description, authorization_code, cashier,
@@ -271,8 +273,9 @@ app.post("/api/save", (req, res) => {
           subtotal_0, subtotal_15, vat_15, total, appraisal, observations,
           items, raw_data, recipient_lat, recipient_lng
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        client.id,
+      `,
+      args: [
+        clientId,
         data.invoice_number,
         data.issuer_name,
         data.issuer_ruc,
@@ -300,15 +303,12 @@ app.post("/api/save", (req, res) => {
         JSON.stringify(data),
         data.recipient_lat || null,
         data.recipient_lng || null
-      );
-
-      return { success: true, clientId: client.id };
+      ]
     });
 
-    const result = saveTransaction();
-    res.json(result);
+    res.json({ success: true, clientId });
 
-  } catch (error) {
+  } catch (error: any) {
     if (error.message === "DUPLICATE_INVOICE") {
       res.status(409).json({ error: "Esta factura ya ha sido registrada." });
     } else {
@@ -319,72 +319,87 @@ app.post("/api/save", (req, res) => {
 });
 
 // 3. Get Clients
-app.get("/api/clients", (req, res) => {
-  const clients = db.prepare('SELECT * FROM clients ORDER BY created_at DESC').all();
-  res.json(clients);
+app.get("/api/clients", async (req, res) => {
+  const result = await db.execute('SELECT * FROM clients ORDER BY created_at DESC');
+  res.json(result.rows);
 });
 
 // 4. Search
-app.get("/api/search", (req, res) => {
+app.get("/api/search", async (req, res) => {
   const q = req.query.q as string;
   if (!q || q.length < 1) return res.json({ clients: [], invoices: [] });
 
   const pattern = `%${q}%`;
 
   // Search Clients (Name or RUC)
-  const clients = db.prepare(`
-    SELECT * FROM clients
-    WHERE name LIKE ? OR ruc LIKE ?
-    ORDER BY name ASC
-    LIMIT 20
-  `).all(pattern, pattern);
+  const clientsResult = await db.execute({
+    sql: `
+      SELECT * FROM clients
+      WHERE name LIKE ? OR ruc LIKE ?
+      ORDER BY name ASC
+      LIMIT 20
+    `,
+    args: [pattern, pattern]
+  });
 
   // Search Invoices (Number)
-  const invoices = db.prepare(`
-    SELECT i.*, c.name as client_name
-    FROM invoices i
-    JOIN clients c ON i.client_id = c.id
-    WHERE i.invoice_number LIKE ?
-    ORDER BY i.date DESC
-    LIMIT 20
-  `).all(pattern);
+  const invoicesResult = await db.execute({
+    sql: `
+      SELECT i.*, c.name as client_name
+      FROM invoices i
+      JOIN clients c ON i.client_id = c.id
+      WHERE i.invoice_number LIKE ?
+      ORDER BY i.date DESC
+      LIMIT 20
+    `,
+    args: [pattern]
+  });
 
-  res.json({ clients, invoices });
+  res.json({ clients: clientsResult.rows, invoices: invoicesResult.rows });
 });
 
 // 5. Get Client Details & Invoices
-app.get("/api/clients/:id", (req, res) => {
-  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(req.params.id);
-  if (!client) return res.status(404).json({ error: "Client not found" });
+app.get("/api/clients/:id", async (req, res) => {
+  const clientResult = await db.execute({
+    sql: 'SELECT * FROM clients WHERE id = ?',
+    args: [req.params.id]
+  });
 
-  const invoices = db.prepare('SELECT * FROM invoices WHERE client_id = ? ORDER BY date DESC').all(req.params.id);
+  if (clientResult.rows.length === 0) return res.status(404).json({ error: "Client not found" });
+
+  const invoicesResult = await db.execute({
+    sql: 'SELECT * FROM invoices WHERE client_id = ? ORDER BY date DESC',
+    args: [req.params.id]
+  });
 
   // Parse items JSON
-  const parsedInvoices = invoices.map(inv => ({
+  const parsedInvoices = invoicesResult.rows.map((inv: any) => ({
     ...inv,
     items: JSON.parse(inv.items || '[]'),
     raw_data: JSON.parse(inv.raw_data || '{}')
   }));
 
-  res.json({ client, invoices: parsedInvoices });
+  res.json({ client: clientResult.rows[0], invoices: parsedInvoices });
 });
 
 // 6. Get All Invoices (for Map)
-app.get("/api/invoices", (req, res) => {
+app.get("/api/invoices", async (req, res) => {
   // Fetch invoices that have coordinates
-  const invoices = db.prepare(`
+  const result = await db.execute(`
     SELECT i.*, c.name as client_name 
     FROM invoices i
     LEFT JOIN clients c ON i.client_id = c.id
     WHERE i.recipient_lat IS NOT NULL AND i.recipient_lng IS NOT NULL
     ORDER BY i.date DESC
     LIMIT 500
-  `).all();
-  res.json(invoices);
+  `);
+  res.json(result.rows);
 });
 
 // Vite middleware setup
 async function startServer() {
+  await initDB(); // Initialize sqlite/turso schema
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
