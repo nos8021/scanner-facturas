@@ -400,18 +400,24 @@ app.get("/api/invoices", async (req, res) => {
 async function startServer() {
   await initDB(); // Initialize sqlite/turso schema
 
-  if (process.env.NODE_ENV !== "production") {
+  // Check if production build exists to serve it. This bypasses weird NODE_ENV issues on Render.
+  const distPath = path.join(__dirname, "dist");
+  const indexPath = path.join(distPath, "index.html");
+
+  if (fs.existsSync(indexPath)) {
+    console.log("Serving compiled production build from /dist");
+    // Serve static files in production
+    app.use(express.static(distPath));
+    app.get("*", (req, res) => {
+      res.sendFile(indexPath);
+    });
+  } else {
+    console.log("Running in Development mode with Vite middleware");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    // Serve static files in production
-    app.use(express.static(path.join(__dirname, "dist")));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(__dirname, "dist", "index.html"));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
