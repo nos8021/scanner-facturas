@@ -12,21 +12,31 @@ import InvoiceMap from './components/InvoiceMap';
 import BatchScanner from './components/BatchScanner';
 import { LayoutDashboard, ScanLine, History, Map as MapIcon, Camera } from 'lucide-react';
 
-type View = 'upload' | 'batch-scan' | 'clients' | 'client-details' | 'map';
+type View = 'scan' | 'clients' | 'client-details' | 'map';
+type ScanMode = 'batch' | 'single' | 'manual';
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<View>('upload');
+  const [currentView, setCurrentView] = useState<View>('scan');
+  const [scanMode, setScanMode] = useState<ScanMode>('batch');
   const [scannedData, setScannedData] = useState<any>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   const [mapInvoices, setMapInvoices] = useState<any[]>([]);
+  // Key to force re-render of InvoiceForm after a successful manual save
+  const [formKey, setFormKey] = useState<number>(0);
 
   const handleAnalyze = (data: any) => {
     setScannedData(data);
   };
 
   const handleSave = () => {
-    setScannedData(null);
-    setCurrentView('clients');
+    if (scanMode === 'manual') {
+      alert('¡Factura manual guardada exitosamente!');
+      setFormKey(prev => prev + 1); // Reset the form
+      // Remain in manual mode so they can enter another one if they want
+    } else {
+      setScannedData(null);
+      setCurrentView('clients');
+    }
   };
 
   const handleSelectClient = (id: number) => {
@@ -57,30 +67,20 @@ export default function App() {
 
           <nav className="flex gap-1">
             <button
-              onClick={() => { setScannedData(null); setCurrentView('upload'); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'upload' && !scannedData
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+              onClick={() => { setScannedData(null); setCurrentView('scan'); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'scan'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <ScanLine className="w-4 h-4" />
-              Scan
-            </button>
-            <button
-              onClick={() => { setScannedData(null); setCurrentView('batch-scan'); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'batch-scan'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
-                }`}
-            >
-              <Camera className="w-4 h-4" />
-              Rápido
+              Escanear
             </button>
             <button
               onClick={() => { setScannedData(null); setCurrentView('clients'); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'clients' || currentView === 'client-details'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <LayoutDashboard className="w-4 h-4" />
@@ -89,8 +89,8 @@ export default function App() {
             <button
               onClick={() => { setScannedData(null); setCurrentView('map'); }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'map'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-600 hover:bg-gray-100'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-gray-600 hover:bg-gray-100'
                 }`}
             >
               <MapIcon className="w-4 h-4" />
@@ -110,24 +110,79 @@ export default function App() {
           />
         ) : (
           <>
-            {currentView === 'upload' && (
-              <div className="space-y-8">
-                <div className="text-center max-w-2xl mx-auto">
-                  <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
-                    Extract data from invoices instantly
-                  </h2>
-                  <p className="mt-4 text-lg text-gray-600">
-                    Upload an image of your invoice. We'll extract the details, check for duplicates, and organize it by client.
-                  </p>
+            {currentView === 'scan' && (
+              <div className="space-y-6 max-w-4xl mx-auto">
+                {/* Secondary Navigation (Tabs) */}
+                <div className="flex justify-center mb-8">
+                  <div className="inline-flex bg-gray-100/80 p-1 rounded-xl shadow-inner border border-gray-200 backdrop-blur-sm overflow-x-auto max-w-full no-scrollbar">
+                    <button
+                      onClick={() => setScanMode('batch')}
+                      className={`min-w-fit px-4 sm:px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${scanMode === 'batch'
+                        ? 'bg-white text-blue-700 shadow-sm ring-1 ring-gray-900/5'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50/50'
+                        }`}
+                    >
+                      Cámara Rápida
+                    </button>
+                    <button
+                      onClick={() => setScanMode('single')}
+                      className={`min-w-fit px-4 sm:px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${scanMode === 'single'
+                        ? 'bg-white text-blue-700 shadow-sm ring-1 ring-gray-900/5'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50/50'
+                        }`}
+                    >
+                      Subir Imagen
+                    </button>
+                    <button
+                      onClick={() => setScanMode('manual')}
+                      className={`min-w-fit px-4 sm:px-6 py-2.5 rounded-lg text-sm font-semibold transition-all duration-200 whitespace-nowrap ${scanMode === 'manual'
+                        ? 'bg-white text-blue-700 shadow-sm ring-1 ring-gray-900/5'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50/50'
+                        }`}
+                    >
+                      Ingreso Manual
+                    </button>
+                  </div>
                 </div>
-                <Upload onAnalyze={handleAnalyze} />
 
-                {/* Recent Activity Preview could go here */}
+                {/* Sub-Views based on scanMode */}
+                {scanMode === 'batch' && <BatchScanner />}
+
+                {scanMode === 'single' && (
+                  <div className="space-y-8">
+                    <div className="text-center max-w-2xl mx-auto mb-8">
+                      <h2 className="text-3xl font-bold text-gray-900 sm:text-4xl">
+                        Escaneo Único
+                      </h2>
+                      <p className="mt-3 text-lg text-gray-600">
+                        Sube o toma la foto de una sola factura. Extraeremos los datos y los podrás revisar antes de guardar.
+                      </p>
+                    </div>
+                    <Upload onAnalyze={handleAnalyze} />
+                  </div>
+                )}
+
+                {scanMode === 'manual' && (
+                  <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <div className="text-center max-w-2xl mx-auto mb-8">
+                      <h2 className="text-2xl font-bold text-gray-900">
+                        Ingreso Manual
+                      </h2>
+                      <p className="mt-2 text-gray-600">
+                        Ingresa los datos de la factura manualmente en el siguiente formulario.
+                      </p>
+                    </div>
+                    {/* Use a wrapper with a key to force re-render, since passing key directly to InvoiceForm here threw a TS error without modifying InvoiceFormProps */}
+                    <div key={`manual-form-${formKey}`}>
+                      <InvoiceForm
+                        initialData={{ items: [] }}
+                        onSave={handleSave}
+                        onCancel={() => setScanMode('batch')}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
-
-            {currentView === 'batch-scan' && (
-              <BatchScanner />
             )}
 
             {currentView === 'clients' && (
