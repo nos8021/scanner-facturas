@@ -439,12 +439,11 @@ app.delete("/api/invoices/:id", async (req, res) => {
 // 9. Export Invoices to CSV for Google My Maps
 app.get("/api/export/invoices", async (req, res) => {
   try {
-    // Fetch all invoices that have coordinates
+    // Fetch all invoices
     const result = await db.execute(`
       SELECT i.*, c.name as client_name 
       FROM invoices i
       LEFT JOIN clients c ON i.client_id = c.id
-      WHERE i.recipient_lat IS NOT NULL AND i.recipient_lng IS NOT NULL
       ORDER BY i.date DESC
     `);
 
