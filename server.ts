@@ -483,12 +483,9 @@ app.get("/api/export/invoices", async (req, res) => {
 
     const csvContent = [headers.join(','), ...rows].join('\n');
 
-    // Add UTF-8 BOM so Excel opens it correctly with accents
-    const bom = '\uFEFF';
-
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', 'attachment; filename=rutas_entrega.csv');
-    res.send(bom + csvContent);
+    res.send(csvContent);
 
   } catch (error) {
     console.error("Error exporting CSV:", error);
