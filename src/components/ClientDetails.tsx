@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, FileText, Calendar, Loader2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { ArrowLeft, FileText, Calendar, Loader2, Trash2 } from 'lucide-react';
 import InvoiceForm from './InvoiceForm';
 
 interface ClientDetailsProps {
@@ -11,8 +11,10 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
+  const [deletingClient, setDeletingClient] = useState(false);
 
-  useEffect(() => {
+  const fetchClientDetails = () => {
     fetch(`/api/clients/${clientId}`)
       .then((res) => res.json())
       .then((data) => {
@@ -23,7 +25,50 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
         console.error(err);
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    fetchClientDetails();
   }, [clientId]);
+
+  const handleDeleteClient = async () => {
+    if (!data?.client) return;
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar a ${data.client.name} y todas sus facturas? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setDeletingClient(true);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar cliente');
+      onBack(); // Go back to dashboard after deletion
+    } catch (err) {
+      console.error(err);
+      alert('Error al eliminar el cliente');
+      setDeletingClient(false);
+    }
+  };
+
+  const handleDeleteInvoice = async (e: React.MouseEvent, invoiceId: number, invoiceNum: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar la factura #${invoiceNum}? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setDeletingInvoiceId(invoiceId);
+    try {
+      const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar factura');
+
+      // Refresh the list
+      fetchClientDetails();
+    } catch (err) {
+      console.error(err);
+      alert('Error al eliminar la factura');
+    } finally {
+      setDeletingInvoiceId(null);
+    }
+  };
 
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-500" /></div>;
   if (!data || !data.client) return <div className="text-red-500 p-4">Client not found</div>;
@@ -52,13 +97,29 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
 
   return (
     <div className="space-y-6">
-      <button
-        onClick={onBack}
-        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4 mr-2" />
-        Back to Dashboard
-      </button>
+      <div className="flex items-center justify-between">
+        <button
+          onClick={onBack}
+          className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" />
+          Back to Dashboard
+        </button>
+
+        <button
+          onClick={handleDeleteClient}
+          disabled={deletingClient}
+          className="flex items-center text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors border border-transparent hover:border-red-200"
+          title="Eliminar cliente"
+        >
+          {deletingClient ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4 mr-2" />
+          )}
+          Eliminar Cliente
+        </button>
+      </div>
 
       {/* Client Header */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
@@ -150,6 +211,24 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
                     {safeItems.length === 0 && (
                       <div className="text-gray-400 italic">No items available</div>
                     )}
+                  </div>
+
+                  {/* Delete Action (Top right inside the item card logic above is complex, let's put it on top right of the invoice card) */}
+                  <div className="mt-3 flex justify-end">
+                    <button
+                      onClick={(e) => handleDeleteInvoice(e, invoice.id, invoice.invoice_number)}
+                      disabled={deletingInvoiceId === invoice.id}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-xs font-medium"
+                    >
+                      {deletingInvoiceId === invoice.id ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Eliminar</span>
+                        </>
+                      )}
+                    </button>
                   </div>
                 </div>
               )

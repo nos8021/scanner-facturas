@@ -400,6 +400,42 @@ app.get("/api/invoices", async (req, res) => {
   res.json(result.rows);
 });
 
+// 7. Delete Client
+app.delete("/api/clients/:id", async (req, res) => {
+  try {
+    const clientId = req.params.id;
+    // Delete all invoices associated with the client
+    await db.execute({
+      sql: 'DELETE FROM invoices WHERE client_id = ?',
+      args: [clientId]
+    });
+    // Delete the client
+    await db.execute({
+      sql: 'DELETE FROM clients WHERE id = ?',
+      args: [clientId]
+    });
+    res.json({ success: true, message: "Client and associated invoices deleted" });
+  } catch (error: any) {
+    console.error("Error deleting client:", error);
+    res.status(500).json({ error: "Failed to delete client" });
+  }
+});
+
+// 8. Delete Invoice
+app.delete("/api/invoices/:id", async (req, res) => {
+  try {
+    const invoiceId = req.params.id;
+    await db.execute({
+      sql: 'DELETE FROM invoices WHERE id = ?',
+      args: [invoiceId]
+    });
+    res.json({ success: true, message: "Invoice deleted" });
+  } catch (error: any) {
+    console.error("Error deleting invoice:", error);
+    res.status(500).json({ error: "Failed to delete invoice" });
+  }
+});
+
 // Vite middleware setup
 async function startServer() {
   await initDB(); // Initialize sqlite/turso schema

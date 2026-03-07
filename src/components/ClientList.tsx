@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { User, ChevronRight, Loader2, Search, FileText } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { User, ChevronRight, Loader2, Search, FileText, Trash2 } from 'lucide-react';
 
 interface ClientListProps {
   onSelectClient: (clientId: number) => void;
@@ -25,9 +25,9 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<{ clients: any[], invoices: any[] } | null>(null);
   const [searching, setSearching] = useState(false);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
 
-  // Load initial clients list
-  useEffect(() => {
+  const fetchClients = () => {
     fetch('/api/clients')
       .then((res) => res.json())
       .then((data) => {
@@ -40,7 +40,41 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
         setError('Failed to load clients');
         setLoading(false);
       });
+  };
+
+  // Load initial clients list
+  useEffect(() => {
+    fetchClients();
   }, []);
+
+  const handleDeleteClient = async (e: React.MouseEvent, clientId: number, clientName: string) => {
+    e.stopPropagation(); // Prevent row click from navigating
+
+    if (!window.confirm(`¿Estás seguro de que quieres eliminar a ${clientName} y todas sus facturas asociadas? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setDeletingId(clientId);
+    try {
+      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Error al eliminar');
+
+      // Refresh list
+      fetchClients();
+
+      // Also refresh search results if active
+      if (searchQuery.trim().length >= 1) {
+        const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const searchData = await searchRes.json();
+        setSearchResults(searchData);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error al eliminar el cliente');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   // Handle search
   useEffect(() => {
@@ -124,9 +158,23 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
+                      <div className="flex items-center gap-4 text-sm text-gray-400">
                         <span>Client Match</span>
-                        <ChevronRight className="w-5 h-5 group-hover:text-blue-500" />
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={(e) => handleDeleteClient(e, client.id, client.name || 'Unknown Client')}
+                            disabled={deletingId === client.id}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
+                            title="Eliminar cliente"
+                          >
+                            {deletingId === client.id ? (
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-5 h-5" />
+                            )}
+                          </button>
+                          <ChevronRight className="w-5 h-5 group-hover:text-blue-500" />
+                        </div>
                       </div>
                     </button>
                   ))}
@@ -181,7 +229,22 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
                         <p className="text-sm text-gray-500">{client.ruc}</p>
                       </div>
                     </div>
-                    <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500" />
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => handleDeleteClient(e, client.id, client.name || 'Unknown Client')}
+                        disabled={deletingId === client.id}
+                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
+                        title="Eliminar cliente"
+                      >
+                        {deletingId === client.id ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-5 h-5" />
+                        )}
+                      </button>
+                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500" />
+                    </div>
                   </button>
                 ))
               )}
