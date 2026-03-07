@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { User, ChevronRight, Loader2, Search, FileText, Trash2 } from 'lucide-react';
+import { User, ChevronRight, Loader2, Search, FileText, Trash2, Download } from 'lucide-react';
 
 interface ClientListProps {
   onSelectClient: (clientId: number) => void;
@@ -26,6 +26,7 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
   const [searchResults, setSearchResults] = useState<{ clients: any[], invoices: any[] } | null>(null);
   const [searching, setSearching] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const fetchClients = () => {
     fetch('/api/clients')
@@ -99,28 +100,62 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      // Trigger download by dynamically creating an anchor tag
+      const link = document.createElement('a');
+      link.href = '/api/export/invoices';
+      link.download = 'rutas_entrega.csv';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Failed to export CSV', error);
+      alert('Error al exportar los datos.');
+    } finally {
+      setTimeout(() => setExporting(false), 1000); // Visual feedback delay
+    }
+  };
+
   if (loading) return <div className="flex justify-center p-8"><Loader2 className="animate-spin text-blue-500" /></div>;
   if (error) return <div className="text-red-500 p-4">{error}</div>;
 
   return (
     <div className="space-y-6">
-      {/* Search Bar */}
-      <div className="relative">
-        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <Search className="h-5 w-5 text-gray-400" />
-        </div>
-        <input
-          type="text"
-          placeholder="Search by Client Name, RUC, or Invoice Number..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm transition-all"
-        />
-        {searching && (
-          <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-            <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+        {/* Search Bar */}
+        <div className="relative flex-1 w-full">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-5 w-5 text-gray-400" />
           </div>
-        )}
+          <input
+            type="text"
+            placeholder="Search by Client Name, RUC, or Invoice Number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-xl leading-5 bg-white placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-blue-500 sm:text-sm shadow-sm transition-all"
+          />
+          {searching && (
+            <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+              <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+            </div>
+          )}
+        </div>
+
+        {/* Export Button */}
+        <button
+          onClick={handleExportCSV}
+          disabled={exporting}
+          className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors disabled:opacity-70"
+        >
+          {exporting ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <Download className="w-4 h-4" />
+          )}
+          <span>Exportar Rutas (CSV)</span>
+        </button>
       </div>
 
       {/* Results or Default List */}

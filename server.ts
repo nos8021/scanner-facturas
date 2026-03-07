@@ -436,6 +436,67 @@ app.delete("/api/invoices/:id", async (req, res) => {
   }
 });
 
+// 9. Export Invoices to CSV for Google My Maps
+app.get("/api/export/invoices", async (req, res) => {
+  try {
+    // Fetch all invoices that have coordinates
+    const result = await db.execute(`
+      SELECT i.*, c.name as client_name 
+      FROM invoices i
+      LEFT JOIN clients c ON i.client_id = c.id
+      WHERE i.recipient_lat IS NOT NULL AND i.recipient_lng IS NOT NULL
+      ORDER BY i.date DESC
+    `);
+
+    // Define CSV Headers required for My Maps
+    const headers = [
+      'Client Name',
+      'Invoice Number',
+      'Address',
+      'Latitude',
+      'Longitude',
+      'Total',
+      'Observations'
+    ];
+
+    // Map rows to CSV format
+    const rows = result.rows.map((row: any) => {
+      // Escape fields that might contain commas or quotes by wrapping in quotes
+      const escapeCsv = (val: any) => {
+        if (val === null || val === undefined) return '';
+        const str = String(val);
+        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+          return `"${str.replace(/"/g, '""')}"`;
+        }
+        return str;
+      };
+
+      return [
+        escapeCsv(row.recipient_name || row.client_name),
+        escapeCsv(row.invoice_number),
+        escapeCsv(row.recipient_address),
+        escapeCsv(row.recipient_lat),
+        escapeCsv(row.recipient_lng),
+        escapeCsv(row.total),
+        escapeCsv(row.observations)
+      ].join(',');
+    });
+
+    const csvContent = [headers.join(','), ...rows].join('\n');
+
+    // Add UTF-8 BOM so Excel opens it correctly with accents
+    const bom = '\uFEFF';
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename=rutas_entrega.csv');
+    res.send(bom + csvContent);
+
+  } catch (error) {
+    console.error("Error exporting CSV:", error);
+    res.status(500).json({ error: "Failed to export CSV data" });
+  }
+});
+
 // Vite middleware setup
 async function startServer() {
   await initDB(); // Initialize sqlite/turso schema
