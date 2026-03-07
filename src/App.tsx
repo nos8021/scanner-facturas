@@ -9,9 +9,10 @@ import InvoiceForm from './components/InvoiceForm';
 import ClientList from './components/ClientList';
 import ClientDetails from './components/ClientDetails';
 import InvoiceMap from './components/InvoiceMap';
-import { LayoutDashboard, ScanLine, History, Map as MapIcon } from 'lucide-react';
+import BatchScanner from './components/BatchScanner';
+import { LayoutDashboard, ScanLine, History, Map as MapIcon, Camera } from 'lucide-react';
 
-type View = 'upload' | 'clients' | 'client-details' | 'map';
+type View = 'upload' | 'batch-scan' | 'clients' | 'client-details' | 'map';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<View>('upload');
@@ -53,37 +54,44 @@ export default function App() {
             </div>
             <h1 className="text-xl font-bold text-gray-900 tracking-tight">InvoiceScanner</h1>
           </div>
-          
+
           <nav className="flex gap-1">
             <button
               onClick={() => { setScannedData(null); setCurrentView('upload'); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                currentView === 'upload' && !scannedData 
-                  ? 'bg-blue-50 text-blue-700' 
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'upload' && !scannedData
+                  ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               <ScanLine className="w-4 h-4" />
               Scan
             </button>
             <button
-              onClick={() => { setScannedData(null); setCurrentView('clients'); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                currentView === 'clients' || currentView === 'client-details'
-                  ? 'bg-blue-50 text-blue-700' 
+              onClick={() => { setScannedData(null); setCurrentView('batch-scan'); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'batch-scan'
+                  ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
+            >
+              <Camera className="w-4 h-4" />
+              Rápido
+            </button>
+            <button
+              onClick={() => { setScannedData(null); setCurrentView('clients'); }}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'clients' || currentView === 'client-details'
+                  ? 'bg-blue-50 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+                }`}
             >
               <LayoutDashboard className="w-4 h-4" />
               Dashboard
             </button>
             <button
               onClick={() => { setScannedData(null); setCurrentView('map'); }}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
-                currentView === 'map'
-                  ? 'bg-blue-50 text-blue-700' 
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${currentView === 'map'
+                  ? 'bg-blue-50 text-blue-700'
                   : 'text-gray-600 hover:bg-gray-100'
-              }`}
+                }`}
             >
               <MapIcon className="w-4 h-4" />
               Map
@@ -113,9 +121,13 @@ export default function App() {
                   </p>
                 </div>
                 <Upload onAnalyze={handleAnalyze} />
-                
+
                 {/* Recent Activity Preview could go here */}
               </div>
+            )}
+
+            {currentView === 'batch-scan' && (
+              <BatchScanner />
             )}
 
             {currentView === 'clients' && (
@@ -130,9 +142,9 @@ export default function App() {
 
             {currentView === 'client-details' && selectedClientId && (
               <div className="max-w-4xl mx-auto">
-                <ClientDetails 
-                  clientId={selectedClientId} 
-                  onBack={() => setCurrentView('clients')} 
+                <ClientDetails
+                  clientId={selectedClientId}
+                  onBack={() => setCurrentView('clients')}
                 />
               </div>
             )}
