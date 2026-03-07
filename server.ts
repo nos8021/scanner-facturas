@@ -236,17 +236,21 @@ app.post("/api/save", async (req, res) => {
   try {
     const data = req.body;
 
+    // LibSQL throws an error if any argument is strictly `undefined`. 
+    // We defensively cast missing keys to `null`.
+    const sanitize = (args: any[]) => args.map(arg => arg === undefined ? null : arg);
+
     // 1. Upsert Client
     let clientResult = await db.execute({
       sql: 'SELECT * FROM clients WHERE ruc = ?',
-      args: [data.client_ruc]
+      args: sanitize([data.client_ruc])
     });
 
     let clientId;
     if (clientResult.rows.length === 0) {
       const info = await db.execute({
         sql: 'INSERT INTO clients (name, ruc, address) VALUES (?, ?, ?)',
-        args: [data.client_name, data.client_ruc, data.client_address]
+        args: sanitize([data.client_name, data.client_ruc, data.client_address])
       });
       clientId = info.lastInsertRowid;
     } else {
@@ -256,7 +260,7 @@ app.post("/api/save", async (req, res) => {
     // 2. Check for duplicate invoice
     const existingInvoice = await db.execute({
       sql: 'SELECT * FROM invoices WHERE invoice_number = ? AND issuer_ruc = ?',
-      args: [data.invoice_number, data.issuer_ruc]
+      args: sanitize([data.invoice_number, data.issuer_ruc])
     });
 
     if (existingInvoice.rows.length > 0) {
@@ -270,11 +274,11 @@ app.post("/api/save", async (req, res) => {
           client_id, invoice_number, issuer_name, issuer_ruc, issuer_address, issuer_phone, taxpayer_type,
           date, environment, payment_type, payment_method_description, authorization_code, cashier,
           recipient_name, recipient_ruc, recipient_address, route, recipient_phone,
-          subtotal_0, subtotal_15, vat_15, total, appraisal, observations,
-          items, raw_data, recipient_lat, recipient_lng
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      args: [
+        subtotal_0, subtotal_15, vat_15, total, appraisal, observations,
+        items, raw_data, recipient_lat, recipient_lng
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+      args: sanitize([
         clientId,
         data.invoice_number,
         data.issuer_name,
@@ -299,11 +303,11 @@ app.post("/api/save", async (req, res) => {
         data.total,
         data.appraisal,
         data.observations,
-        JSON.stringify(data.items),
+        JSON.stringify(data.items || []),
         JSON.stringify(data),
         data.recipient_lat || null,
         data.recipient_lng || null
-      ]
+      ])
     });
 
     res.json({ success: true, clientId });
@@ -329,7 +333,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q as string;
   if (!q || q.length < 1) return res.json({ clients: [], invoices: [] });
 
-  const pattern = `%${q}%`;
+  const pattern = `% ${q} % `;
 
   // Search Clients (Name or RUC)
   const clientsResult = await db.execute({
@@ -338,7 +342,7 @@ app.get("/api/search", async (req, res) => {
       WHERE name LIKE ? OR ruc LIKE ?
       ORDER BY name ASC
       LIMIT 20
-    `,
+      `,
     args: [pattern, pattern]
   });
 
@@ -351,7 +355,7 @@ app.get("/api/search", async (req, res) => {
       WHERE i.invoice_number LIKE ?
       ORDER BY i.date DESC
       LIMIT 20
-    `,
+      `,
     args: [pattern]
   });
 
@@ -392,7 +396,7 @@ app.get("/api/invoices", async (req, res) => {
     WHERE i.recipient_lat IS NOT NULL AND i.recipient_lng IS NOT NULL
     ORDER BY i.date DESC
     LIMIT 500
-  `);
+      `);
   res.json(result.rows);
 });
 
