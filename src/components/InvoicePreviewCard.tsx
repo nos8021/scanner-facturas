@@ -9,13 +9,15 @@ interface InvoicePreviewCardProps {
     searchQuery?: string;
 }
 
-const Highlight = ({ text, highlight }: { text: string, highlight: string }) => {
-    if (!highlight?.trim() || typeof text !== 'string') return <>{text}</>;
-    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+const Highlight = ({ text, highlight }: { text: any, highlight?: string }) => {
+    if (!highlight?.trim() || text == null) return <>{text}</>;
+    const safeText = String(text);
+    const escapedHighlight = highlight.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const parts = safeText.split(new RegExp(`(${escapedHighlight})`, 'gi'));
     return (
         <span>
             {parts.map((part, i) =>
-                part.toLowerCase() === highlight.toLowerCase() ?
+                part.toLowerCase() === highlight.trim().toLowerCase() ?
                     <span key={i} className="bg-yellow-200 text-gray-900 font-semibold">{part}</span> : part
             )}
         </span>
