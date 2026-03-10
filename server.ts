@@ -100,6 +100,7 @@ app.post("/api/analyze", async (req, res) => {
       - client_name: Cliente / Sender Name
       - recipient_name: Destinatario Name
       - route: Destino / Ruta
+      - recipient_lat / recipient_lng: MUST calculate the exact latitude and longitude of the recipient's address in Ecuador (e.g. for "Bodega Enetsa Otavalo" or "Calle Principal"). This is critical for routing.
       - payment_type: F. Pago (e.g. CONTADO)
       - payment_method_description: Forma de Pago
       - items: List of products (Cant, Descripcion, V.Uni, Valor)
@@ -134,6 +135,8 @@ app.post("/api/analyze", async (req, res) => {
             recipient_ruc: { type: Type.STRING },
             recipient_address: { type: Type.STRING },
             route: { type: Type.STRING },
+            recipient_lat: { type: Type.NUMBER, description: "Calculated latitude for the recipient address" },
+            recipient_lng: { type: Type.NUMBER, description: "Calculated longitude for the recipient address" },
             recipient_phone: { type: Type.STRING },
             environment: { type: Type.STRING },
             payment_type: { type: Type.STRING }, // F. Pago
