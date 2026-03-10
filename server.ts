@@ -352,11 +352,11 @@ app.get("/api/search", async (req, res) => {
       SELECT i.*, c.name as client_name
       FROM invoices i
       JOIN clients c ON i.client_id = c.id
-      WHERE i.invoice_number LIKE ?
+      WHERE i.invoice_number LIKE ? OR c.name LIKE ? OR c.ruc LIKE ? OR i.recipient_name LIKE ?
       ORDER BY i.date DESC
       LIMIT 20
       `,
-    args: [pattern]
+    args: [pattern, pattern, pattern, pattern]
   });
 
   res.json({ clients: clientsResult.rows, invoices: invoicesResult.rows });

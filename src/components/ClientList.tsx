@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { User, ChevronRight, Loader2, Search, FileText, Trash2, Download } from 'lucide-react';
+import InvoicePreviewCard from './InvoicePreviewCard';
 
 interface ClientListProps {
   onSelectClient: (clientId: number) => void;
@@ -216,29 +217,11 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
 
                   {/* Invoice Matches */}
                   {searchResults.invoices?.map((invoice) => (
-                    <button
-                      key={`invoice-${invoice.id}`}
-                      onClick={() => onSelectClient(invoice.client_id)}
-                      className="w-full text-left p-4 hover:bg-purple-50 transition-colors flex items-center justify-between group border-l-4 border-transparent hover:border-purple-500"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-purple-100 rounded-full text-purple-600">
-                          <FileText className="w-5 h-5" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900">
-                            {invoice.client_name || 'Unknown Client'}
-                          </p>
-                          <p className="text-sm text-gray-500">
-                            Invoice #: <Highlight text={invoice.invoice_number || ''} highlight={searchQuery} />
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 text-sm text-gray-400">
-                        <span>Invoice Match</span>
-                        <ChevronRight className="w-5 h-5 group-hover:text-purple-500" />
-                      </div>
-                    </button>
+                    <InvoicePreviewCard
+                      key={`search-inv-${invoice.id}`}
+                      invoice={invoice}
+                      onSelect={() => onSelectClient(invoice.client_id)}
+                    />
                   ))}
                 </>
               )}
