@@ -474,8 +474,8 @@ app.get("/api/export/invoices", async (req, res) => {
         escapeCsv(row.recipient_name || row.client_name),
         escapeCsv(row.invoice_number),
         escapeCsv(row.recipient_address),
-        escapeCsv(row.recipient_lat),
-        escapeCsv(row.recipient_lng),
+        escapeCsv(row.recipient_lat || ''),
+        escapeCsv(row.recipient_lng || ''),
         escapeCsv(row.total),
         escapeCsv(row.observations)
       ].join(',');
