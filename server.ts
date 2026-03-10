@@ -333,7 +333,7 @@ app.get("/api/search", async (req, res) => {
   const q = req.query.q as string;
   if (!q || q.length < 1) return res.json({ clients: [], invoices: [] });
 
-  const pattern = `% ${q} % `;
+  const pattern = `%${q}%`;
 
   // Search Clients (Name or RUC)
   const clientsResult = await db.execute({
