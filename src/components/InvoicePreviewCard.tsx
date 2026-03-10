@@ -6,9 +6,23 @@ interface InvoicePreviewCardProps {
     onSelect: () => void;
     onDelete?: (e: React.MouseEvent, id: number, num: string) => void;
     isDeleting?: boolean;
+    searchQuery?: string;
 }
 
-const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({ invoice, onSelect, onDelete, isDeleting }) => {
+const Highlight = ({ text, highlight }: { text: string, highlight: string }) => {
+    if (!highlight?.trim() || typeof text !== 'string') return <>{text}</>;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+        <span>
+            {parts.map((part, i) =>
+                part.toLowerCase() === highlight.toLowerCase() ?
+                    <span key={i} className="bg-yellow-200 text-gray-900 font-semibold">{part}</span> : part
+            )}
+        </span>
+    );
+};
+
+const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({ invoice, onSelect, onDelete, isDeleting, searchQuery = '' }) => {
     let safeItems: any[] = [];
     if (Array.isArray(invoice.items)) {
         safeItems = invoice.items;
@@ -29,7 +43,9 @@ const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({ invoice, onSele
             <div className="flex justify-between items-start mb-1.5">
                 <div className="flex items-center gap-2">
                     <FileText className="w-4 h-4 text-purple-600" />
-                    <span className="font-medium text-gray-900 group-hover:text-purple-700">#{invoice.invoice_number}</span>
+                    <span className="font-medium text-gray-900 group-hover:text-purple-700">
+                        #<Highlight text={invoice.invoice_number} highlight={searchQuery} />
+                    </span>
                 </div>
                 <span className="font-bold text-gray-900">${Number(invoice.total || 0).toFixed(2)}</span>
             </div>
@@ -40,7 +56,11 @@ const InvoicePreviewCard: React.FC<InvoicePreviewCardProps> = ({ invoice, onSele
                         <Calendar className="w-3 h-3" />
                         {invoice.date}
                     </div>
-                    {invoice.client_name && <div className="font-medium text-gray-800">{invoice.client_name}</div>}
+                    {invoice.client_name && (
+                        <div className="font-medium text-gray-800">
+                            <Highlight text={invoice.client_name} highlight={searchQuery} />
+                        </div>
+                    )}
                 </div>
                 <div className="text-right">
                     <div>{invoice.issuer_name}</div>

@@ -221,6 +221,7 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
                       key={`search-inv-${invoice.id}`}
                       invoice={invoice}
                       onSelect={() => onSelectClient(invoice.client_id)}
+                      searchQuery={searchQuery}
                     />
                   ))}
                 </>
