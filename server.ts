@@ -544,6 +544,21 @@ app.get("/api/export/invoices", async (req, res) => {
       // Prefer the cleaned address if available, otherwise just use the raw address
       let addressToSearch = row.recipient_address_clean || row.recipient_address || '';
 
+      // If we don't have a clean address (e.g. historical data), scrub it manually
+      if (!row.recipient_address_clean && addressToSearch) {
+        // Strip common Ecuadorian landmarks and directions that break Google Maps
+        const markers = ['DIAGONAL', 'FRENTE', 'JUNTO', 'TRAS', 'REF:', 'REFERENCIA', 'NOTARIA', 'CASA', 'EDIFICIO', 'CERCANÍAS'];
+        for (const marker of markers) {
+          const idx = addressToSearch.toUpperCase().indexOf(marker);
+          if (idx > 3) {
+            addressToSearch = addressToSearch.substring(0, idx).trim();
+            // Clean trailing commas or hyphens left over
+            addressToSearch = addressToSearch.replace(/[, -]+$/, '');
+            break;
+          }
+        }
+      }
+
       // Smartly extract destination city from the route to help Google Maps
       if (row.route) {
         const parts = row.route.split(/-| a /i);
