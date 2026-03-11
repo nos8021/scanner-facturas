@@ -168,7 +168,13 @@ app.post("/api/analyze", async (req, res) => {
                 }
               }
             }
-          }
+          },
+          required: [
+            "issuer_name", "issuer_ruc", "invoice_number", "date",
+            "client_name", "client_ruc", "recipient_name",
+            "recipient_address", "recipient_address_clean", "route", "total",
+            "recipient_lat", "recipient_lng"
+          ]
         }
       };
 
