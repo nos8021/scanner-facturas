@@ -560,6 +560,9 @@ app.get("/api/export/invoices", async (req, res) => {
       // Remove ANY commas from the address to prevent Google Maps from splitting it incorrectly
       addressToSearch = addressToSearch.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
 
+      // Remove "CALLE PRINCIPAL" or "CALLE SECUNDARIA" to help Google Maps rely purely on the proper noun street name
+      addressToSearch = addressToSearch.replace(/\bCALLE PRINCIPAL\b/gi, '').replace(/\bCALLE SECUNDARIA\b/gi, '').replace(/\s+/g, ' ').trim();
+
       // Smartly extract destination city from the route to help Google Maps (no commas)
       if (row.route) {
         const parts = row.route.split(/-| a /i);
