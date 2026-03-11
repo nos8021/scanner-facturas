@@ -569,10 +569,8 @@ app.get("/api/export/invoices", async (req, res) => {
         }
       }
 
-      // Always append Ecuador to keep Google Maps grounded (no commas)
-      if (addressToSearch && !addressToSearch.toLowerCase().includes('ecuador')) {
-        addressToSearch += ' Ecuador';
-      }
+      // Actively remove the word 'Ecuador' if present, as it forces Google Maps to zoom out too far when it gets confused
+      addressToSearch = addressToSearch.replace(/ecuador/gi, '').trim();
 
       return [
         escapeCsv(row.recipient_name || row.client_name),
