@@ -100,7 +100,7 @@ app.post("/api/analyze", async (req, res) => {
       - client_name: Cliente / Sender Name
       - recipient_name: Destinatario Name
       - route: Destino / Ruta
-      - recipient_address_clean: MUST clean up the recipient address by removing descriptive fluff (e.g., "Frente a", "Diagonal a", "A 100 metros", "Edificio") to create a standard, shortened street address optimized specifically for Google Maps Geocoding (e.g. "Calle Principal Pedro Alarcon").
+      - recipient_address_clean: MUST aggressively clean the recipient address for Google Maps. ONLY keep the primary street names, intersections (e.g., using " y "), or house numbers. REMOVE ALL descriptive fluff, landmarks, business names, or directions (e.g., REMOVE "Frente a", "Diagonal", "Notaria", "Edificio", "Cerca de"). Example: "HERMANO MIGUEL Y VEGA MUNOZ DIAGONAL NOTARIA 14" MUST become exactly "HERMANO MIGUEL Y VEGA MUNOZ".
       - recipient_lat / recipient_lng: MUST calculate the exact latitude and longitude of the recipient's address in Ecuador (e.g. for "Bodega Enetsa Otavalo" or "Calle Principal"). This is critical for routing.
       - payment_type: F. Pago (e.g. CONTADO)
       - payment_method_description: Forma de Pago
