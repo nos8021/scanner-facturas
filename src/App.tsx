@@ -20,6 +20,7 @@ export default function App() {
   const [scanMode, setScanMode] = useState<ScanMode>('batch');
   const [scannedData, setScannedData] = useState<any>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<string | undefined>(undefined);
   const [mapInvoices, setMapInvoices] = useState<any[]>([]);
   // Key to force re-render of InvoiceForm after a successful manual save
   const [formKey, setFormKey] = useState<number>(0);
@@ -39,8 +40,9 @@ export default function App() {
     }
   };
 
-  const handleSelectClient = (id: number) => {
+  const handleSelectClient = (id: number, date?: string) => {
     setSelectedClientId(id);
+    setSelectedDate(date);
     setCurrentView('client-details');
   };
 
@@ -199,6 +201,7 @@ export default function App() {
               <div className="max-w-4xl mx-auto">
                 <ClientDetails
                   clientId={selectedClientId}
+                  selectedDate={selectedDate}
                   onBack={() => setCurrentView('clients')}
                 />
               </div>

@@ -3,15 +3,19 @@ import { ArrowLeft, FileText, Calendar, Loader2, Trash2, MapPin } from 'lucide-r
 import InvoiceForm from './InvoiceForm';
 import InvoicePreviewCard from './InvoicePreviewCard'; interface ClientDetailsProps {
   clientId: number;
+  selectedDate?: string;
   onBack: () => void;
 }
 
-export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) {
+export default function ClientDetails({ clientId, selectedDate, onBack }: ClientDetailsProps) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [deletingInvoiceId, setDeletingInvoiceId] = useState<number | null>(null);
   const [deletingClient, setDeletingClient] = useState(false);
+
+  // State to track if we're viewing just the selected date or all history
+  const [viewAllHistory, setViewAllHistory] = useState(!selectedDate);
 
   const fetchClientDetails = () => {
     fetch(`/api/clients/${clientId}`)
@@ -94,6 +98,11 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
 
   const { client, invoices } = data;
 
+  // Filter invoices to only the selected date if applicable
+  const displayedInvoices = (!viewAllHistory && selectedDate)
+    ? invoices.filter((inv: any) => inv.created_at && inv.created_at.startsWith(selectedDate))
+    : invoices;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -141,18 +150,35 @@ export default function ClientDetails({ clientId, onBack }: ClientDetailsProps) 
 
       {/* Invoices List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-gray-900">Invoice History</h2>
-          <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-            {invoices?.length || 0} Invoices
-          </span>
+        <div className="p-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-lg font-semibold text-gray-900">
+              {(!viewAllHistory && selectedDate) ? 'Invoices (Selected Day)' : 'Invoice History'}
+            </h2>
+            <span className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+              {displayedInvoices?.length || 0} Invoices
+            </span>
+          </div>
+
+          {selectedDate && (
+            <button
+              onClick={() => setViewAllHistory(!viewAllHistory)}
+              className="text-sm text-blue-600 hover:text-blue-800 font-medium bg-blue-50 px-3 py-1.5 rounded-lg border border-transparent hover:border-blue-200 transition-colors"
+            >
+              {viewAllHistory ? 'Ver Solo Seleccionadas' : 'Ver Todo el Historial'}
+            </button>
+          )}
         </div>
 
         <div className="divide-y divide-gray-100">
-          {!invoices || invoices.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">No invoices found for this client.</div>
+          {!displayedInvoices || displayedInvoices.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              {(!viewAllHistory && selectedDate)
+                ? "No invoices found for this client on the selected day."
+                : "No invoices found for this client."}
+            </div>
           ) : (
-            invoices.map((invoice: any) => {
+            displayedInvoices.map((invoice: any) => {
               // Safely parse items to ensure it's always an array
               let safeItems: any[] = [];
               if (Array.isArray(invoice.items)) {

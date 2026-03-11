@@ -3,7 +3,7 @@ import { User, ChevronRight, Loader2, Search, FileText, Trash2, Download } from 
 import InvoicePreviewCard from './InvoicePreviewCard';
 
 interface ClientListProps {
-  onSelectClient: (clientId: number) => void;
+  onSelectClient: (clientId: number, date?: string) => void;
 }
 
 const Highlight = ({ text, highlight }: { text: string, highlight: string }) => {
@@ -20,7 +20,7 @@ const Highlight = ({ text, highlight }: { text: string, highlight: string }) => 
 };
 
 export default function ClientList({ onSelectClient }: ClientListProps) {
-  const [clients, setClients] = useState<any[]>([]);
+  const [groupedClients, setGroupedClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,11 +30,10 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
   const [exporting, setExporting] = useState(false);
 
   const fetchClients = () => {
-    fetch('/api/clients')
+    fetch('/api/dashboard/grouped')
       .then((res) => res.json())
       .then((data) => {
-        // Fallback to empty array just in case
-        setClients(Array.isArray(data) ? data : []);
+        setGroupedClients(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch((err) => {
@@ -101,13 +100,13 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const handleExportCSV = async () => {
+  const handleExportCSV = async (dateFilter?: string) => {
     setExporting(true);
     try {
       // Trigger download by dynamically creating an anchor tag
       const link = document.createElement('a');
-      link.href = '/api/export/invoices';
-      link.download = 'rutas_entrega.csv';
+      link.href = dateFilter ? `/api/export/invoices?date=${dateFilter}` : '/api/export/invoices';
+      link.download = dateFilter ? `rutas_entrega_${dateFilter}.csv` : 'rutas_entrega.csv';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -144,9 +143,10 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
           )}
         </div>
 
-        {/* Export Button */}
+        {/* Export Button - global, left just in case or we can remove it entirely 
+            but users might want an 'Export All' button */}
         <button
-          onClick={handleExportCSV}
+          onClick={() => handleExportCSV()}
           disabled={exporting}
           className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-xl shadow-sm transition-colors disabled:opacity-70"
         >
@@ -155,15 +155,15 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
           ) : (
             <Download className="w-4 h-4" />
           )}
-          <span>Exportar Rutas (CSV)</span>
+          <span>Export All (CSV)</span>
         </button>
       </div>
 
       {/* Results or Default List */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50">
+        <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h2 className="text-lg font-semibold text-gray-900">
-            {searchResults ? 'Search Results' : 'Clients'}
+            {searchResults ? 'Search Results' : 'Clients Overview'}
           </h2>
         </div>
 
@@ -228,46 +228,72 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
               )}
             </>
           ) : (
-            /* Default Client List */
-            <>
-              {!clients || clients.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">No clients found yet. Upload an invoice to get started.</div>
+            /* Default Grouped Client List */
+            <div className="divide-y-8 divide-gray-50">
+              {!groupedClients || groupedClients.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">No hay clientes aún. Escanea una factura para empezar a ver el dashboard.</div>
               ) : (
-                clients.map((client) => (
-                  <button
-                    key={client.id}
-                    onClick={() => onSelectClient(client.id)}
-                    className="w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-blue-100 rounded-full text-blue-600">
-                        <User className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-900">{client.name || 'Unknown Client'}</p>
-                        <p className="text-sm text-gray-500">{client.ruc}</p>
-                      </div>
+                groupedClients.map((group) => (
+                  <div key={group.date} className="bg-white">
+                    {/* Date Header for Group */}
+                    <div className="px-4 py-3 bg-blue-50/50 border-y border-gray-100 flex justify-between items-center">
+                      <h3 className="font-semibold text-blue-900">
+                        {new Date(group.date + 'T12:00:00Z').toLocaleDateString('es-ES', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                      </h3>
+                      <button
+                        onClick={() => handleExportCSV(group.date)}
+                        className="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 hover:bg-green-200 text-sm font-medium rounded-lg transition-colors"
+                      >
+                        <Download className="w-4 h-4" />
+                        CSV Día
+                      </button>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={(e) => handleDeleteClient(e, client.id, client.name || 'Unknown Client')}
-                        disabled={deletingId === client.id}
-                        className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
-                        title="Eliminar cliente"
-                      >
-                        {deletingId === client.id ? (
-                          <Loader2 className="w-5 h-5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-5 h-5" />
-                        )}
-                      </button>
-                      <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500" />
+                    <div className="divide-y divide-gray-100">
+                      {group.clients.map((client: any) => (
+                        <button
+                          key={`${group.date}-${client.id}`}
+                          onClick={() => onSelectClient(client.id, group.date)}
+                          className="w-full text-left p-4 hover:bg-gray-50 transition-colors flex items-center justify-between group"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-100 rounded-full text-blue-600">
+                              <User className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <p className="font-medium text-gray-900">{client.name || 'Unknown Client'}</p>
+                              <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <span>{client.ruc}</span>
+                                <span>•</span>
+                                <span className="bg-gray-100 px-2 py-0.5 rounded-full text-xs">
+                                  {client.invoice_count} factura(s) hoy
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => handleDeleteClient(e, client.id, client.name || 'Unknown Client')}
+                              disabled={deletingId === client.id}
+                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors z-10"
+                              title="Eliminar cliente"
+                            >
+                              {deletingId === client.id ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-5 h-5" />
+                              )}
+                            </button>
+                            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-gray-500" />
+                          </div>
+                        </button>
+                      ))}
                     </div>
-                  </button>
+                  </div>
                 ))
               )}
-            </>
+            </div>
           )}
         </div>
       </div>

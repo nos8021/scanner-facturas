@@ -439,17 +439,75 @@ app.delete("/api/invoices/:id", async (req, res) => {
   }
 });
 
+// 8.5 Get Grouped Dashboard Data
+app.get("/api/dashboard/grouped", async (req, res) => {
+  try {
+    // Group invoices by DATE(created_at). We join clients so we know who they belong to.
+    const result = await db.execute(`
+      SELECT 
+        DATE(i.created_at) as scan_date,
+        c.id as client_id,
+        c.name as client_name,
+        c.ruc as client_ruc,
+        COUNT(i.id) as invoice_count
+      FROM invoices i
+      JOIN clients c ON i.client_id = c.id
+      GROUP BY scan_date, c.id
+      ORDER BY scan_date DESC, c.name ASC
+    `);
+
+    // Transform flat sql rows into a nested structure: 
+    // [ { date: '2026-03-10', clients: [ {id, name, ...}, ... ] }, ...]
+    const grouped = result.rows.reduce((acc: any[], row: any) => {
+      const dateStr = row.scan_date;
+      let dateGroup = acc.find(g => g.date === dateStr);
+      if (!dateGroup) {
+        dateGroup = { date: dateStr, clients: [] };
+        acc.push(dateGroup);
+      }
+      dateGroup.clients.push({
+        id: row.client_id,
+        name: row.client_name,
+        ruc: row.client_ruc,
+        invoice_count: row.invoice_count
+      });
+      return acc;
+    }, []);
+
+    res.json(grouped);
+  } catch (error: any) {
+    console.error("Error fetching grouped dashboard:", error);
+    res.status(500).json({ error: "Failed to fetch grouped dashboard" });
+  }
+});
+
 // 9. Export Invoices to CSV for Google My Maps
 app.get("/api/export/invoices", async (req, res) => {
   try {
-    // Fetch all invoices
-    const result = await db.execute(`
+    const filterDate = req.query.date as string;
+
+    // Fetch all invoices, optionally filtered by date
+    let query = `
       SELECT i.*, c.name as client_name 
       FROM invoices i
       LEFT JOIN clients c ON i.client_id = c.id
+    `;
+    const args: any[] = [];
+
+    if (filterDate) {
+      query += ` WHERE DATE(i.created_at) = ? `;
+      args.push(filterDate);
+    }
+
+    query += `
       GROUP BY i.invoice_number
       ORDER BY i.date DESC
-    `);
+    `;
+
+    const result = await db.execute({
+      sql: query,
+      args: args
+    });
 
     // Define CSV Headers required for My Maps
     const headers = [
