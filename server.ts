@@ -552,25 +552,26 @@ app.get("/api/export/invoices", async (req, res) => {
           const idx = addressToSearch.toUpperCase().indexOf(marker);
           if (idx > 3) {
             addressToSearch = addressToSearch.substring(0, idx).trim();
-            // Clean trailing commas or hyphens left over
-            addressToSearch = addressToSearch.replace(/[, -]+$/, '');
             break;
           }
         }
       }
 
-      // Smartly extract destination city from the route to help Google Maps
+      // Remove ANY commas from the address to prevent Google Maps from splitting it incorrectly
+      addressToSearch = addressToSearch.replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+
+      // Smartly extract destination city from the route to help Google Maps (no commas)
       if (row.route) {
         const parts = row.route.split(/-| a /i);
         const destination = parts[parts.length - 1].trim();
         if (destination && !addressToSearch.toLowerCase().includes(destination.toLowerCase())) {
-          addressToSearch = `${addressToSearch}, ${destination}`;
+          addressToSearch = `${addressToSearch} ${destination}`;
         }
       }
 
-      // Always append Ecuador to keep Google Maps grounded
+      // Always append Ecuador to keep Google Maps grounded (no commas)
       if (addressToSearch && !addressToSearch.toLowerCase().includes('ecuador')) {
-        addressToSearch += ', Ecuador';
+        addressToSearch += ' Ecuador';
       }
 
       return [
