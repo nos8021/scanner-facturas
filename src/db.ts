@@ -57,6 +57,7 @@ export async function initDB() {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       recipient_lat REAL,
       recipient_lng REAL,
+      recipient_address_clean TEXT,
       FOREIGN KEY (client_id) REFERENCES clients (id),
       UNIQUE(invoice_number, issuer_ruc)
     );
@@ -69,7 +70,7 @@ export async function initDB() {
     'recipient_name TEXT', 'recipient_ruc TEXT', 'recipient_address TEXT', 'route TEXT',
     'recipient_phone TEXT', 'payment_type TEXT', 'payment_method_description TEXT',
     'subtotal_0 REAL', 'subtotal_15 REAL', 'vat_15 REAL', 'appraisal REAL', 'observations TEXT',
-    'recipient_lat REAL', 'recipient_lng REAL'
+    'recipient_lat REAL', 'recipient_lng REAL', 'recipient_address_clean TEXT'
   ];
 
   for (const colDef of columnsToAdd) {

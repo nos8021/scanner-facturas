@@ -100,6 +100,7 @@ app.post("/api/analyze", async (req, res) => {
       - client_name: Cliente / Sender Name
       - recipient_name: Destinatario Name
       - route: Destino / Ruta
+      - recipient_address_clean: MUST clean up the recipient address by removing descriptive fluff (e.g., "Frente a", "Diagonal a", "A 100 metros", "Edificio") to create a standard, shortened street address optimized specifically for Google Maps Geocoding (e.g. "Calle Principal Pedro Alarcon").
       - recipient_lat / recipient_lng: MUST calculate the exact latitude and longitude of the recipient's address in Ecuador (e.g. for "Bodega Enetsa Otavalo" or "Calle Principal"). This is critical for routing.
       - payment_type: F. Pago (e.g. CONTADO)
       - payment_method_description: Forma de Pago
@@ -134,6 +135,7 @@ app.post("/api/analyze", async (req, res) => {
             recipient_name: { type: Type.STRING },
             recipient_ruc: { type: Type.STRING },
             recipient_address: { type: Type.STRING },
+            recipient_address_clean: { type: Type.STRING, description: "Sanitized address perfectly optimized for Google Maps" },
             route: { type: Type.STRING },
             recipient_lat: { type: Type.NUMBER, description: "Calculated latitude for the recipient address" },
             recipient_lng: { type: Type.NUMBER, description: "Calculated longitude for the recipient address" },
@@ -278,8 +280,8 @@ app.post("/api/save", async (req, res) => {
           date, environment, payment_type, payment_method_description, authorization_code, cashier,
           recipient_name, recipient_ruc, recipient_address, route, recipient_phone,
         subtotal_0, subtotal_15, vat_15, total, appraisal, observations,
-        items, raw_data, recipient_lat, recipient_lng
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        items, raw_data, recipient_lat, recipient_lng, recipient_address_clean
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       args: sanitize([
         clientId,
@@ -309,7 +311,8 @@ app.post("/api/save", async (req, res) => {
         JSON.stringify(data.items || []),
         JSON.stringify(data),
         data.recipient_lat || null,
-        data.recipient_lng || null
+        data.recipient_lng || null,
+        data.recipient_address_clean || null
       ])
     });
 
@@ -532,7 +535,8 @@ app.get("/api/export/invoices", async (req, res) => {
         return str;
       };
 
-      let addressToSearch = row.recipient_address || '';
+      // Prefer the cleaned address if available, otherwise just use the raw address
+      let addressToSearch = row.recipient_address_clean || row.recipient_address || '';
 
       // Smartly extract destination city from the route to help Google Maps
       if (row.route) {
