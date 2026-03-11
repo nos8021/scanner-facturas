@@ -18,7 +18,10 @@ export default function ClientDetails({ clientId, selectedDate, onBack }: Client
   const [viewAllHistory, setViewAllHistory] = useState(!selectedDate);
 
   const fetchClientDetails = () => {
-    fetch(`/api/clients/${clientId}`)
+    const password = localStorage.getItem('app_password');
+    fetch(`/api/clients/${clientId}`, {
+      headers: { 'Authorization': `Bearer ${password}` }
+    })
       .then((res) => res.json())
       .then((data) => {
         setData(data);
@@ -42,7 +45,11 @@ export default function ClientDetails({ clientId, selectedDate, onBack }: Client
 
     setDeletingClient(true);
     try {
-      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      const password = localStorage.getItem('app_password');
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
       if (!res.ok) throw new Error('Error al eliminar cliente');
       onBack(); // Go back to dashboard after deletion
     } catch (err) {
@@ -60,7 +67,11 @@ export default function ClientDetails({ clientId, selectedDate, onBack }: Client
 
     setDeletingInvoiceId(invoiceId);
     try {
-      const res = await fetch(`/api/invoices/${invoiceId}`, { method: 'DELETE' });
+      const password = localStorage.getItem('app_password');
+      const res = await fetch(`/api/invoices/${invoiceId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
       if (!res.ok) throw new Error('Error al eliminar factura');
 
       // Refresh the list

@@ -103,9 +103,13 @@ export default function InvoiceForm({ initialData, onSave, onCancel, readOnly = 
     setError(null);
 
     try {
+      const password = localStorage.getItem('app_password');
       const response = await fetch('/api/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${password}`
+        },
         body: JSON.stringify(data),
       });
 

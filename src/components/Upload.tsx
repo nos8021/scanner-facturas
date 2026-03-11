@@ -65,9 +65,13 @@ export default function Upload({ onAnalyze }: UploadProps) {
           });
           // -------------------------------------
 
+          const password = localStorage.getItem('app_password');
           const response = await fetch('/api/analyze', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${password}`
+            },
             body: JSON.stringify({ image: compressedBase64 }),
           });
 

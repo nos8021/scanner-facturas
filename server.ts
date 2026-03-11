@@ -50,30 +50,50 @@ if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
   }
 }
 
-console.log("--- DEBUG ENV ---");
-console.log("Current working directory:", process.cwd());
-console.log("GEMINI_API_KEY present:", !!apiKey);
-if (apiKey) {
-  console.log("GEMINI_API_KEY length:", apiKey.length);
-  console.log("GEMINI_API_KEY starts with:", apiKey.substring(0, 5) + "...");
-  console.log("GEMINI_API_KEY is placeholder:", apiKey === "MY_GEMINI_API_KEY");
-}
-console.log("-----------------");
-
-if (!apiKey) {
-  console.error("CRITICAL ERROR: API Key is missing. Checked GEMINI_API_KEY, API_KEY, and GOOGLE_API_KEY.");
-} else if (apiKey === "MY_GEMINI_API_KEY") {
-  console.error("CRITICAL ERROR: API Key is set to the placeholder value 'MY_GEMINI_API_KEY'. Please update your secrets to provide a valid key.");
-} else {
-  console.log(`API Key found (length: ${apiKey.length}). Initializing Gemini client...`);
-}
-
 const ai = new GoogleGenAI({ apiKey: apiKey || "" });
+
+// SECURITY: Application Password
+const APP_PASSWORD = process.env.APP_PASSWORD || "admin123";
+
+// SECURITY: Simple Rate Limiting for /api/analyze
+const analyzeRequests = new Map<string, { count: number, resetAt: number }>();
+const RATE_LIMIT_WINDOW = 15 * 60 * 1000; // 15 minutes
+const MAX_REQUESTS = 20;
+
+const rateLimiter = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const ip = req.ip || "unknown";
+  const now = Date.now();
+  let data = analyzeRequests.get(ip);
+
+  if (!data || now > data.resetAt) {
+    data = { count: 0, resetAt: now + RATE_LIMIT_WINDOW };
+  }
+
+  data.count++;
+  analyzeRequests.set(ip, data);
+
+  if (data.count > MAX_REQUESTS) {
+    return res.status(429).json({ error: "Too many analysis requests. Please try again later." });
+  }
+  next();
+};
+
+// SECURITY: Authentication Middleware
+const authenticate = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || authHeader !== `Bearer ${APP_PASSWORD}`) {
+    return res.status(401).json({ error: "Unauthorized. Please provide the correct app password." });
+  }
+  next();
+};
+
+// Apply authentication to all /api routes
+app.use("/api", authenticate);
 
 // API Routes
 
 // 1. Analyze Image
-app.post("/api/analyze", async (req, res) => {
+app.post("/api/analyze", rateLimiter, async (req, res) => {
   try {
     if (!apiKey || apiKey === "MY_GEMINI_API_KEY") {
       return res.status(500).json({

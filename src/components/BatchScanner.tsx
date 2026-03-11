@@ -80,9 +80,13 @@ export default function BatchScanner() {
 
             // 2. Analyze
             updateJob({ status: 'analyzing', message: 'Extrayendo con IA...' });
+            const password = localStorage.getItem('app_password');
             const analyzeRes = await fetch('/api/analyze', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${password}`
+                },
                 body: JSON.stringify({ image: compressedBase64 }),
             });
 
@@ -96,7 +100,10 @@ export default function BatchScanner() {
             updateJob({ status: 'saving', message: 'Guardando en Base de Datos...' });
             const saveRes = await fetch('/api/save', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${password}`
+                },
                 body: JSON.stringify(invoiceData),
             });
 

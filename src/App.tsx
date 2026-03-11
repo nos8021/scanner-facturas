@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Upload from './components/Upload';
 import InvoiceForm from './components/InvoiceForm';
 import ClientList from './components/ClientList';
 import ClientDetails from './components/ClientDetails';
 import InvoiceMap from './components/InvoiceMap';
 import BatchScanner from './components/BatchScanner';
-import { LayoutDashboard, ScanLine, History, Map as MapIcon, Camera } from 'lucide-react';
+import { LayoutDashboard, ScanLine, History, Map as MapIcon, Camera, Lock, LogOut, KeyRound, Loader2 } from 'lucide-react';
 
 type View = 'scan' | 'clients' | 'client-details' | 'map';
 type ScanMode = 'batch' | 'single' | 'manual';
@@ -24,6 +24,11 @@ export default function App() {
   const [mapInvoices, setMapInvoices] = useState<any[]>([]);
   // Key to force re-render of InvoiceForm after a successful manual save
   const [formKey, setFormKey] = useState<number>(0);
+
+  // Security State
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!localStorage.getItem('app_password'));
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
 
   const handleAnalyze = (data: any) => {
     setScannedData(data);
@@ -46,14 +51,95 @@ export default function App() {
     setCurrentView('client-details');
   };
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.trim()) {
+      localStorage.setItem('app_password', password);
+      setIsAuthenticated(true);
+      setLoginError(false);
+    } else {
+      setLoginError(true);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('app_password');
+    setIsAuthenticated(false);
+    setPassword('');
+  };
+
   useEffect(() => {
-    if (currentView === 'map') {
-      fetch('/api/invoices')
+    if (currentView === 'map' && isAuthenticated) {
+      const storedPass = localStorage.getItem('app_password');
+      fetch('/api/invoices', {
+        headers: { 'Authorization': `Bearer ${storedPass}` }
+      })
         .then(res => res.json())
         .then(data => setMapInvoices(data))
         .catch(err => console.error('Failed to fetch invoices for map', err));
     }
-  }, [currentView]);
+  }, [currentView, isAuthenticated]);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 selection:bg-blue-500/30">
+        <div className="max-w-md w-full animate-in fade-in zoom-in duration-500">
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden relative group">
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+            <div className="relative">
+              <div className="flex justify-center mb-6">
+                <div className="bg-blue-600 p-4 rounded-2xl shadow-lg shadow-blue-600/20">
+                  <Lock className="w-8 h-8 text-white" />
+                </div>
+              </div>
+
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-white mb-2">Acceso Seguro</h1>
+                <p className="text-slate-400">Ingresa la contraseña para acceder al sistema de facturación.</p>
+              </div>
+
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="relative group/input">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-500 group-focus-within/input:text-blue-500 transition-colors">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Contraseña del sistema"
+                    className="w-full bg-white/5 border border-white/10 text-white rounded-2xl py-4 pl-12 pr-4 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all placeholder:text-slate-600"
+                    autoFocus
+                  />
+                </div>
+
+                {loginError && (
+                  <p className="text-red-400 text-sm text-center animate-bounce">Por favor ingresa una contraseña.</p>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/20 transition-all active:scale-[0.98] flex items-center justify-center gap-2 group/btn"
+                >
+                  Continuar
+                  <div className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+                    </svg>
+                  </div>
+                </button>
+              </form>
+
+              <div className="mt-8 text-center">
+                <p className="text-slate-500 text-sm">© 2026 InvoiceScanner AI • v1.2.0</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
@@ -97,6 +183,16 @@ export default function App() {
             >
               <MapIcon className="w-4 h-4" />
               Map
+            </button>
+
+            <div className="w-px h-6 bg-gray-200 mx-1 hidden sm:block" />
+
+            <button
+              onClick={handleLogout}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Cerrar Sesión"
+            >
+              <LogOut className="w-5 h-5" />
             </button>
           </nav>
         </div>

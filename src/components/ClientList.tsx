@@ -30,7 +30,10 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
   const [exporting, setExporting] = useState(false);
 
   const fetchClients = () => {
-    fetch('/api/dashboard/grouped')
+    const password = localStorage.getItem('app_password');
+    fetch('/api/dashboard/grouped', {
+      headers: { 'Authorization': `Bearer ${password}` }
+    })
       .then((res) => res.json())
       .then((data) => {
         setGroupedClients(Array.isArray(data) ? data : []);
@@ -57,7 +60,11 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
 
     setDeletingId(clientId);
     try {
-      const res = await fetch(`/api/clients/${clientId}`, { method: 'DELETE' });
+      const password = localStorage.getItem('app_password');
+      const res = await fetch(`/api/clients/${clientId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
       if (!res.ok) throw new Error('Error al eliminar');
 
       // Refresh list
@@ -65,7 +72,10 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
 
       // Also refresh search results if active
       if (searchQuery.trim().length >= 1) {
-        const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
+        const password = localStorage.getItem('app_password');
+        const searchRes = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { 'Authorization': `Bearer ${password}` }
+        });
         const searchData = await searchRes.json();
         setSearchResults(searchData);
       }
@@ -82,7 +92,10 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
     const timer = setTimeout(() => {
       if (searchQuery.trim().length >= 1) {
         setSearching(true);
-        fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`)
+        const password = localStorage.getItem('app_password');
+        fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`, {
+          headers: { 'Authorization': `Bearer ${password}` }
+        })
           .then(res => res.json())
           .then(data => {
             setSearchResults(data);
@@ -105,10 +118,23 @@ export default function ClientList({ onSelectClient }: ClientListProps) {
     try {
       // Trigger download by dynamically creating an anchor tag
       const link = document.createElement('a');
-      link.href = dateFilter ? `/api/export/invoices?date=${dateFilter}` : '/api/export/invoices';
+      const password = localStorage.getItem('app_password');
+      // For CSV export, since it's a direct link click, we can't easily add headers unless we use fetch and blob.
+      // Let's change it to a fetch and then download to keep security.
+      const csvUrl = dateFilter ? `/api/export/invoices?date=${dateFilter}` : '/api/export/invoices';
+      const response = await fetch(csvUrl, {
+        headers: { 'Authorization': `Bearer ${password}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to export');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      link.href = url;
       link.download = dateFilter ? `rutas_entrega_${dateFilter}.csv` : 'rutas_entrega.csv';
       document.body.appendChild(link);
       link.click();
+      window.URL.revokeObjectURL(url);
       document.body.removeChild(link);
     } catch (error) {
       console.error('Failed to export CSV', error);
