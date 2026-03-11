@@ -517,8 +517,8 @@ app.get("/api/export/invoices", async (req, res) => {
       'Client Name',
       'Invoice Number',
       'Address',
-      'Latitude',
-      'Longitude',
+      'latitude',
+      'longitude',
       'Total',
       'Observations'
     ];
