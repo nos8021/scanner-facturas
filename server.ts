@@ -447,6 +447,7 @@ app.get("/api/export/invoices", async (req, res) => {
       SELECT i.*, c.name as client_name 
       FROM invoices i
       LEFT JOIN clients c ON i.client_id = c.id
+      GROUP BY i.invoice_number
       ORDER BY i.date DESC
     `);
 
@@ -473,10 +474,26 @@ app.get("/api/export/invoices", async (req, res) => {
         return str;
       };
 
+      let addressToSearch = row.recipient_address || '';
+
+      // Smartly extract destination city from the route to help Google Maps
+      if (row.route) {
+        const parts = row.route.split(/-| a /i);
+        const destination = parts[parts.length - 1].trim();
+        if (destination && !addressToSearch.toLowerCase().includes(destination.toLowerCase())) {
+          addressToSearch = `${addressToSearch}, ${destination}`;
+        }
+      }
+
+      // Always append Ecuador to keep Google Maps grounded
+      if (addressToSearch && !addressToSearch.toLowerCase().includes('ecuador')) {
+        addressToSearch += ', Ecuador';
+      }
+
       return [
         escapeCsv(row.recipient_name || row.client_name),
         escapeCsv(row.invoice_number),
-        escapeCsv(row.recipient_address),
+        escapeCsv(addressToSearch),
         escapeCsv(row.recipient_lat || ''),
         escapeCsv(row.recipient_lng || ''),
         escapeCsv(row.total),
